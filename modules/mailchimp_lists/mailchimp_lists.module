@@ -255,6 +255,7 @@ function mailchimp_lists_form_user_register_form_alter(&$form, &$form_state, $fo
  * Subscribe new users to optional and required newsletters.
  */
 function mailchimp_lists_user_insert(&$edit, $account, $category) {
+
   // @todo: pay attention to user status.
   if (isset($edit['mailchimp_lists']) && count($edit['mailchimp_lists']) > 0) {
     mailchimp_lists_process_subscribe_form_choices($edit['mailchimp_lists'], $account);
@@ -641,6 +642,51 @@ function mailchimp_lists_process_subscribe_form_choices($list_forms, $account = 
   }
 }
 
+// MODIFIED BY CHANCHAL
+// HOOK CALLBACK WHEN USER VERIFIES THEIR ACCOUNT VIA EMAIL
+// FUNCTION TO FORCE A SUBSCRIPTION TO A LIST
+
+function mailchimp_lists_form_alter(&$form, &$form_state, $form_id)
+{
+	global $user;
+	
+	// Trigger when at password reset form
+	if ($form_id == 'user_pass_reset')
+	{
+		// If $account has not been defined, define it from $user
+		
+		if (empty($account)) 
+		{
+			$account = user_load($form_state['build_info']['args'][0]);
+		}
+		
+		// Log something
+		watchdog('MAILCHIMP DEBUG MESSAGE:', 'We are there, user : ('.$account->mail.')!');
+
+		//Cycle through and fetch all elligible lists
+		$lists = mailchimp_lists_get_available_lists($account);
+		if (!empty($lists)) 
+		{
+			foreach ($lists as $list) 
+			{
+				
+				// prepare merge_vars
+				$merge_vars = mailchimp_lists_load_user_mergevars($account, $list);
+				
+				// 'add' the currect $account
+				mailchimp_lists_execute_change('add', $list, $account->mail, $merge_vars);
+				
+				// Log something
+				watchdog('MAILCHIMP DEBUG MESSAGE:', 'Execution successful for user '.$account->name.'! '.$account->mail.' probably got signed up for newsletters!');
+				
+			}
+		}
+		else watchdog('MAILCHIMP DEBUG MESSAGE:', 'There was no list! You should probably reconfigure Mailchimp at your site.');
+    }
+}
+
+// END MODIFICATION
+
 /**
  * Calls the appropriate API function, or adds to the queue, as appropriate.
  * 
@@ -760,7 +806,10 @@ function mailchimp_lists_load_user_mergevars($account, $list, $interest_groups =
     }
     // Always add email:
     $values += array(
-      'EMAIL' => $account->mail,
+      //'EMAIL' => $account->mail,
+      //CHANCHAL, CHANGE FROM VANILLA: ADDITION
+    	//MERGE1 (AKA FNAME) Tag added to pass Drupal username to Mailchimp
+      'EMAIL' => $account->mail, 'MERGE1' => $account->name,
     );
   }
   // Format interest groups if present:

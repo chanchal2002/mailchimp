@@ -100,7 +100,9 @@ function mailchimp_is_subscribed($list_id, $email, $reset = FALSE) {
 function mailchimp_subscribe_user($list, $email, $merge_vars, $message = TRUE, $mcapi = NULL) {
   $success = FALSE;
   if ($mcapi || $mcapi = mailchimp_get_api_object()) {
-    $double_optin = $list->settings['doublein'];
+    //$double_optin = $list->settings['doublein'];
+    // CHANCHAL EDIT: $double_optin always be 0
+    $double_optin = 0;
 
     $success = $mcapi->listSubscribe($list->mc_list_id, $email, $merge_vars, 'html', $double_optin, TRUE);
 
